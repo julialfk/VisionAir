@@ -1,0 +1,26 @@
+Enter command: [takeoff|land|move (x,y,z)|exit]
+takeoff
+Enter command: [takeoff|land|move (x,y,z)|exit]
+current loc
+(< cv2.KeyPoint 000001D0EA3EB9F0>,)
+x 176.89666748046875 y 285.0020446777344 size 122.73968505859375
+Enter command: [takeoff|land|move (x,y,z)|exit]
+land
+Enter command: [takeoff|land|move (x,y,z)|exit]
+takeoff
+Enter command: [takeoff|land|move (x,y,z)|exit]
+current loc
+(< cv2.KeyPoint 000001D0EA3EB9F0>,)
+x 118.11021423339844 y 277.73828125 size 132.67190551757812
+Enter command: [takeoff|land|move (x,y,z)|exit]
+land
+Enter command: [takeoff|land|move (x,y,z)|exit]
+takeoff
+Enter command: [takeoff|land|move (x,y,z)|exit]
+current loc
+(< cv2.KeyPoint 000001D0EA3EB9F0>,)
+x 156.17469787597656 y 308.5570068359375 size 142.60362243652344
+Enter command: [takeoff|land|move (x,y,z)|exit]
+land
+Enter command: [takeoff|land|move (x,y,z)|exit]
+q
