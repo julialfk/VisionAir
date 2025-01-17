@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 import re
 import time
+from math import pi
 from codrone_edu.drone import *
 import control
 
@@ -92,22 +93,29 @@ def get_pos(cam, result, first, params):
             x = kp.pt[0]
             y = kp.pt[1]
             s = kp.size
-            print(f"x", x, "y", y, "size", s)
+            print("x", x, "y", y, "size", s, "height", calc_height(s))
 
     return x, y, s
 
 
-def has_arrived(cam, result, first, params, x, y):
+def has_arrived(cam, result, first, params, x, y, z):
     pos = get_pos(cam, result, first, params)
     if pos is False:
         return None
 
     current_x, current_y, current_s = pos
-    return(abs(current_x) <= abs(x) + 5 and abs(current_x) >= abs(x) - 5
-           and abs(current_y) <= abs(y) + 5 and abs(current_y) >= abs(y) - 5)
+    current_z = calc_height(current_s)
+    return (abs(current_x) <= abs(x) + 25 and abs(current_x) >= abs(x) - 25
+            and abs(current_y) <= abs(y) + 25 and abs(current_y) >= abs(y) - 25
+            and abs(current_z) <= abs(z) + 10 and abs(current_z) >= abs(z) - 10)
 
 
-def calc_distance(cam, result, first, params, drone, x, y):
+def calc_height(diameter, blob=True):
+    if blob:
+        return 366.5 - 0.0132 * pi * (0.5 * diameter)**2
+
+
+def calc_distance(cam, result, first, params, x, y, z):
     pos = get_pos(cam, result, first, params)
     if pos is False:
         return None
@@ -116,13 +124,14 @@ def calc_distance(cam, result, first, params, drone, x, y):
 
     d_x = x - current_x
     d_y = y - current_y
+    d_z = z - calc_height(current_s)
 
-    return d_x, d_y
+    return d_x, d_y, d_z
 
 
 def calc_angle(distance, throttle=False):
     if throttle:
-        base_value = 8
+        base_value = 32
     else:
         base_value = 15
     angle = distance * 100 / MAX_DISTANCE
@@ -138,39 +147,32 @@ def calc_angle(distance, throttle=False):
     return angle
 
 
-def move(cam, result, first, params, drone, x, y):
-    arrived = has_arrived(cam, result, first, params, x, y)
+def move(cam, result, first, params, drone, x, y, z):
+    arrived = has_arrived(cam, result, first, params, x, y, z)
     correct_started = False
     correct_time = 0
 
     # test whether more correcting time will improve end point
     while not arrived and not correct_started and (correct_time < 0.5):
-        distance = calc_distance(cam, result, first, params, drone, x, y)
+        distance = calc_distance(cam, result, first, params, x, y, z)
 
         # Stop moving if drone flies off view
         if distance is None:
             break
 
-        d_x, d_y = distance
+        d_x, d_y, d_z = distance
 
         drone.set_pitch(calc_angle(d_x))
         drone.set_roll(-calc_angle(d_y))
-        drone.set_throttle(calc_angle(0, throttle=True))
+        drone.set_throttle(calc_angle(d_z, throttle=True))
         drone.move()
 
-        arrived = has_arrived(cam, result, first, params, x, y)
+        arrived = has_arrived(cam, result, first, params, x, y, z)
         if arrived and not correct_started:
             correct_start = time.time()
 
         if correct_started:
             correct_time = time.time() - correct_start
-
-        # pos = get_pos(cam, result, first, params)
-        # current_x, current_y, current_s = pos
-        # print(f"(x,y) = ({current_x}, {current_y})")
-
-    # print(f"(x,y,z) = ({drone.get_pos_x()}, {drone.get_pos_y()}, {drone.get_pos_z()})")
-    # print(f"bottom range = {drone.get_bottom_range()}")
 
     drone.reset_move_values()
 
@@ -196,15 +198,10 @@ def main():
         elif re.match(r"move \(-?[0-9]+,-?[0-9]+,-?[0-9]+\)", command):
             (x,y,z) = ast.literal_eval(command[5:])
             print(f"Flying to: ({x},{y},{z})")
-            move(cam, result, first, params, drone, x, y)
+            move(cam, result, first, params, drone, x, y, z)
         elif command == "state":
             print(drone.get_flight_state())
         elif command == "current loc":
-            # print(drone.get_position_data())
-            # print(f"(x,y,z) = ({drone.get_pos_x()}, {drone.get_pos_y()}, {drone.get_pos_z()})")
-            # print(f"bottom range = {drone.get_bottom_range()}")
-            # print(f"front range = {drone.get_front_range()}")
-            # print(f"flow x: {drone.get_flow_x()}, flow y: {drone.get_flow_y()}")
             get_pos(cam, result, first, params)
         elif command == "up":
             drone.set_throttle(30)
