@@ -81,8 +81,10 @@ def get_pos(cam, result, first, params):
             (0, 0, 255),
             cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS,
         )
-        # cv2.imshow("Keypoints", im_with_keypoints)
-        print(keypoints)
+        cv2.imshow("Keypoints", im_with_keypoints)
+        if keypoints == ():
+            print("No object found")
+            return False
 
         # get keypoints parameters
         # list of blobs keypoints
@@ -95,15 +97,22 @@ def get_pos(cam, result, first, params):
     return x, y, s
 
 
-def has_arrived(cam, result, first, params, drone, x, y):
-    current_x, current_y, current_s = get_pos(cam, result, first, params)
+def has_arrived(cam, result, first, params, x, y):
+    pos = get_pos(cam, result, first, params)
+    if pos is False:
+        return None
 
+    current_x, current_y, current_s = pos
     return(abs(current_x) <= abs(x) + 5 and abs(current_x) >= abs(x) - 5
            and abs(current_y) <= abs(y) + 5 and abs(current_y) >= abs(y) - 5)
 
 
 def calc_distance(cam, result, first, params, drone, x, y):
-    current_x, current_y, current_s = get_pos(cam, result, first, params)
+    pos = get_pos(cam, result, first, params)
+    if pos is False:
+        return None
+
+    current_x, current_y, current_s = pos
 
     d_x = x - current_x
     d_y = y - current_y
@@ -130,32 +139,38 @@ def calc_angle(distance, throttle=False):
 
 
 def move(cam, result, first, params, drone, x, y):
-    arrived = has_arrived(cam, result, first, params, drone, x, y)
+    arrived = has_arrived(cam, result, first, params, x, y)
     correct_started = False
     correct_time = 0
 
     # test whether more correcting time will improve end point
     while not arrived and not correct_started and (correct_time < 0.5):
-        d_x, d_y = calc_distance(cam, result, first, params, drone, x, y)
-        current_x, current_y, current_s = get_pos(cam, result, first, params)
-        # print(f"angle: {calc_angle(d_x)}, current_x: {current_x}")
-        # print(f"angle: {calc_angle(d_y)}, current_y: {current_y}")
-        # print(f"angle: {calc_angle(d_z)}, current_z: {current_z}")
+        distance = calc_distance(cam, result, first, params, drone, x, y)
+
+        # Stop moving if drone flies off view
+        if distance is None:
+            break
+
+        d_x, d_y = distance
 
         drone.set_pitch(calc_angle(d_x))
         drone.set_roll(-calc_angle(d_y))
         drone.set_throttle(calc_angle(0, throttle=True))
         drone.move()
 
-        arrived = has_arrived(cam, result, first, params, drone, x, y)
+        arrived = has_arrived(cam, result, first, params, x, y)
         if arrived and not correct_started:
             correct_start = time.time()
 
         if correct_started:
             correct_time = time.time() - correct_start
 
-    print(f"(x,y,z) = ({drone.get_pos_x()}, {drone.get_pos_y()}, {drone.get_pos_z()})")
-    print(f"bottom range = {drone.get_bottom_range()}")
+        # pos = get_pos(cam, result, first, params)
+        # current_x, current_y, current_s = pos
+        # print(f"(x,y) = ({current_x}, {current_y})")
+
+    # print(f"(x,y,z) = ({drone.get_pos_x()}, {drone.get_pos_y()}, {drone.get_pos_z()})")
+    # print(f"bottom range = {drone.get_bottom_range()}")
 
     drone.reset_move_values()
 
